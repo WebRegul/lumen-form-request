@@ -136,8 +136,9 @@ class FormRequest extends Request implements ValidatesWhenResolved
     protected function failedValidation(Validator $validator)
     {
         throw (new ValidationException($validator))
-            ->errorBag($this->errorBag)
-            ->redirectTo($this->getRedirectUrl());
+            ->errorBag($this->errorBag);
+        // don't redirects for lumen
+        //    ->redirectTo($this->getRedirectUrl());
     }
 
     /**
@@ -147,15 +148,16 @@ class FormRequest extends Request implements ValidatesWhenResolved
      */
     protected function getRedirectUrl()
     {
-        $url = $this->redirector->getUrlGenerator();
-
-        if ($this->redirect) {
-            return $url->to($this->redirect);
-        } elseif ($this->redirectRoute) {
-            return $url->route($this->redirectRoute);
-        } elseif ($this->redirectAction) {
-            return $url->action($this->redirectAction);
-        }
+        //don't redirects for lumen
+//        $url = $this->redirector->getUrlGenerator();
+//
+//        if ($this->redirect) {
+//            return $url->to($this->redirect);
+//        } elseif ($this->redirectRoute) {
+//            return $url->route($this->redirectRoute);
+//        } elseif ($this->redirectAction) {
+//            return $url->action($this->redirectAction);
+//        }
 
         return $url->previous();
     }
