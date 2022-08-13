@@ -4,10 +4,12 @@ namespace Illuminate\Foundation\Http;
 
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\ValidatesWhenResolved;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Validation\ValidatesWhenResolvedTrait;
@@ -69,16 +71,17 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * The validator instance.
      *
-     * @var \Illuminate\Contracts\Validation\Validator
+     * @var Validator
      */
     protected $validator;
 
     /**
      * Get the validator instance for the request.
      *
-     * @return \Illuminate\Contracts\Validation\Validator
+     * @return Validator
+     * @throws BindingResolutionException
      */
-    protected function getValidatorInstance()
+    protected function getValidatorInstance(): Validator
     {
         if ($this->validator) {
             return $this->validator;
@@ -104,10 +107,10 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Create the default validator instance.
      *
-     * @param  \Illuminate\Contracts\Validation\Factory  $factory
-     * @return \Illuminate\Contracts\Validation\Validator
+     * @param ValidationFactory $factory
+     * @return Validator
      */
-    protected function createDefaultValidator(ValidationFactory $factory)
+    protected function createDefaultValidator(ValidationFactory $factory): Validator
     {
         return $factory->make(
             $this->validationData(), $this->container->call([$this, 'rules']),
@@ -120,30 +123,50 @@ class FormRequest extends Request implements ValidatesWhenResolved
      *
      * @return array
      */
-    public function validationData()
+    public function validationData(): array
     {
         return $this->all();
+    }
+
+    protected function statusCode(): int
+    {
+        return 422;
+    }
+
+    protected function errorMessage(): string
+    {
+        return 'The given data was invalid.';
+    }
+
+    protected function errorResponse(): JsonResponse
+    {
+        //return response()->json([
+        return new JsonResponse([
+            'message' => $this->errorMessage(),
+            'errors' => $this->validator->errors()->messages(),
+        ], $this->statusCode());
     }
 
     /**
      * Handle a failed validation attempt.
      *
-     * @param  \Illuminate\Contracts\Validation\Validator  $validator
+     * @param Validator $validator
      * @return void
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     protected function failedValidation(Validator $validator)
     {
-        throw (new ValidationException($validator))
-            ->errorBag($this->errorBag);
+        throw new ValidationException($validator, $this->errorResponse());
         // don't redirects for lumen
+        //throw (new ValidationException($validator))
+        //    ->errorBag($this->errorBag);
         //    ->redirectTo($this->getRedirectUrl());
     }
 
     /**
      * Get the URL to redirect to on a validation error.
-     *
+     * @deprecated
      * @return string
      */
     protected function getRedirectUrl()
@@ -159,7 +182,7 @@ class FormRequest extends Request implements ValidatesWhenResolved
 //            return $url->action($this->redirectAction);
 //        }
 
-        return $url->previous();
+        return ''; //$url->previous();
     }
 
     /**
@@ -238,7 +261,7 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Set the Validator instance.
      *
-     * @param  \Illuminate\Contracts\Validation\Validator  $validator
+     * @param Validator $validator
      * @return $this
      */
     public function setValidator(Validator $validator)
