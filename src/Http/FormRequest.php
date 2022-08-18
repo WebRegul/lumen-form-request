@@ -18,13 +18,23 @@ use Illuminate\Validation\ValidationException;
 class FormRequest extends Request implements ValidatesWhenResolved
 {
     use ValidatesWhenResolvedTrait;
+    use ValidationMessagesTrait;
+
+    /**
+     * Custom messages for auto merge with default messages
+     *
+     * @var array
+     */
+    public static array $messages = [];
+
+    public static bool $disableDefaultMessages = false;
 
     /**
      * The container instance.
      *
-     * @var \Illuminate\Contracts\Container\Container
+     * @var Container
      */
-    protected $container;
+    protected Container $container;
 
     /**
      * The redirector instance.
@@ -240,13 +250,13 @@ class FormRequest extends Request implements ValidatesWhenResolved
 
     /**
      * Get custom messages for validator errors.
-     *
+     * Using from trait
      * @return array
      */
-    public function messages()
-    {
-        return [];
-    }
+//    public function messages()
+//    {
+//        return [];
+//    }
 
     /**
      * Get custom attributes for validator errors.
@@ -287,7 +297,7 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Set the container implementation.
      *
-     * @param  \Illuminate\Contracts\Container\Container  $container
+     * @param Container $container
      * @return $this
      */
     public function setContainer(Container $container)

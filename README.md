@@ -5,6 +5,7 @@
 [![StyleCI](https://styleci.io/repos/259593361/shield?branch=master)](https://styleci.io/repos/259593361)
 
 Adopt the Laravel Form Request to Lumen framework.
+Используется namespace ```Illuminate\Foundation\``` для совместимости со [Scribe](https://scribe.knuckles.wtf/laravel/)
 
 * [Installation](#installation)
 * [Usage](#usage)
@@ -26,7 +27,20 @@ $app->register(Illuminate\Foundation\Providers\FormRequestServiceProvider::class
 
 ## Usage
 
-Let's continue the official [Laravel's documantation](https://laravel.com/docs/7.x/validation).
+Let's continue the official [Laravel's documantation](https://laravel.com/docs/8.x/validation).
+
+По дефолту добавлены кастомизированные сообщения об ошибках. Для их отключения в Request классе объявить: 
+```php
+public static bool $disableDefaultMessages = false;
+```
+либо использовать метод ```messages()``` 
+Для добавления собственных ошибок без отключения дефолтных:
+```php
+public static array $messages = [
+    'rule' => 'custom message'; //будет добавлено к сообщениям, либо заменит дефолтное при совпадении правила
+];
+```
+
 
 ## License
 
