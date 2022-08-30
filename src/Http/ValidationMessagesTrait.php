@@ -12,10 +12,12 @@ trait ValidationMessagesTrait
      */
     protected array $baseMessages = [
         'required' => 'поле :attribute обязательно для заполнения',
-        'in' => 'поле :attribute можем иметь только значения: :values',
+        'in' => 'поле :attribute может иметь только значения: :values',
         'alpha_dash' => 'для поля :attribute допустимы только цифры, символы латиницы, дефиса и подчеркивания',
         'min' => 'минимальное количество символов для поля :attribute равно :min',
         'max' => 'максимальное количество символов для поля :attribute равно :max',
+        'prohibited_unless' => 'поле :attribute допустимо только для :other равного: :values',
+        'required_if' => 'поле :attribute обязательно если :other: :value'
     ];
 
     public function messages(): array
