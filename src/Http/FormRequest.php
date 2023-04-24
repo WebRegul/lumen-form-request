@@ -4,12 +4,10 @@ namespace Illuminate\Foundation\Http;
 
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\Access\Response;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\ValidatesWhenResolved;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Validation\ValidatesWhenResolvedTrait;
@@ -21,20 +19,11 @@ class FormRequest extends Request implements ValidatesWhenResolved
     use ValidationMessagesTrait;
 
     /**
-     * Custom messages for auto merge with default messages
-     *
-     * @var array
-     */
-    public static array $messages = [];
-
-    public static bool $disableDefaultMessages = false;
-
-    /**
      * The container instance.
      *
-     * @var Container
+     * @var \Illuminate\Contracts\Container\Container
      */
-    protected Container $container;
+    protected $container;
 
     /**
      * The redirector instance.
@@ -81,17 +70,16 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * The validator instance.
      *
-     * @var Validator
+     * @var \Illuminate\Contracts\Validation\Validator
      */
     protected $validator;
 
     /**
      * Get the validator instance for the request.
      *
-     * @return Validator
-     * @throws BindingResolutionException
+     * @return \Illuminate\Contracts\Validation\Validator
      */
-    protected function getValidatorInstance(): Validator
+    protected function getValidatorInstance()
     {
         if ($this->validator) {
             return $this->validator;
@@ -109,6 +97,13 @@ class FormRequest extends Request implements ValidatesWhenResolved
             $this->withValidator($validator);
         }
 
+        if (method_exists($this, 'after')) {
+            $validator->after($this->container->call(
+                $this->after(...),
+                ['validator' => $validator]
+            ));
+        }
+
         $this->setValidator($validator);
 
         return $this->validator;
@@ -117,15 +112,27 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Create the default validator instance.
      *
-     * @param ValidationFactory $factory
-     * @return Validator
+     * @param  \Illuminate\Contracts\Validation\Factory  $factory
+     * @return \Illuminate\Contracts\Validation\Validator
      */
-    protected function createDefaultValidator(ValidationFactory $factory): Validator
+    protected function createDefaultValidator(ValidationFactory $factory)
     {
-        return $factory->make(
-            $this->validationData(), $this->container->call([$this, 'rules']),
-            $this->messages(), $this->attributes()
+        $rules = $this->container->call([$this, 'rules']);
+
+        $validator = $factory->make(
+            $this->validationData(),
+            $rules,
+            $this->messages(),
+            $this->attributes()
         )->stopOnFirstFailure($this->stopOnFirstFailure);
+
+        if ($this->isPrecognitive()) {
+            $validator->setRules(
+                $this->filterPrecognitiveRules($validator->getRulesWithoutPlaceholders())
+            );
+        }
+
+        return $validator;
     }
 
     /**
@@ -133,66 +140,44 @@ class FormRequest extends Request implements ValidatesWhenResolved
      *
      * @return array
      */
-    public function validationData(): array
+    public function validationData()
     {
         return $this->all();
-    }
-
-    protected function statusCode(): int
-    {
-        return 422;
-    }
-
-    protected function errorMessage(): string
-    {
-        return 'The given data was invalid.';
-    }
-
-    protected function errorResponse(): JsonResponse
-    {
-        //return response()->json([
-        return new JsonResponse([
-            'message' => $this->errorMessage(),
-            'errors' => $this->validator->errors()->messages(),
-        ], $this->statusCode());
     }
 
     /**
      * Handle a failed validation attempt.
      *
-     * @param Validator $validator
+     * @param  \Illuminate\Contracts\Validation\Validator  $validator
      * @return void
      *
-     * @throws ValidationException
+     * @throws \Illuminate\Validation\ValidationException
      */
     protected function failedValidation(Validator $validator)
     {
-        throw new ValidationException($validator, $this->errorResponse());
-        // don't redirects for lumen
-        //throw (new ValidationException($validator))
-        //    ->errorBag($this->errorBag);
-        //    ->redirectTo($this->getRedirectUrl());
+        throw (new ValidationException($validator))
+            ->errorBag($this->errorBag)
+            ->redirectTo($this->getRedirectUrl());
     }
 
     /**
      * Get the URL to redirect to on a validation error.
-     * @deprecated
+     *
      * @return string
      */
     protected function getRedirectUrl()
     {
-        //don't redirects for lumen
-//        $url = $this->redirector->getUrlGenerator();
-//
-//        if ($this->redirect) {
-//            return $url->to($this->redirect);
-//        } elseif ($this->redirectRoute) {
-//            return $url->route($this->redirectRoute);
-//        } elseif ($this->redirectAction) {
-//            return $url->action($this->redirectAction);
-//        }
+        $url = $this->redirector->getUrlGenerator();
 
-        return ''; //$url->previous();
+        if ($this->redirect) {
+            return $url->to($this->redirect);
+        } elseif ($this->redirectRoute) {
+            return $url->route($this->redirectRoute);
+        } elseif ($this->redirectAction) {
+            return $url->action($this->redirectAction);
+        }
+
+        return $url->previous();
     }
 
     /**
@@ -241,22 +226,24 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Get the validated data from the request.
      *
-     * @return array
+     * @param  array|int|string|null  $key
+     * @param  mixed  $default
+     * @return mixed
      */
-    public function validated()
+    public function validated($key = null, $default = null)
     {
-        return $this->validator->validated();
+        return data_get($this->validator->validated(), $key, $default);
     }
 
     /**
      * Get custom messages for validator errors.
-     * Using from trait
+     *
      * @return array
      */
-//    public function messages()
-//    {
-//        return [];
-//    }
+    public function messages()
+    {
+        return [];
+    }
 
     /**
      * Get custom attributes for validator errors.
@@ -271,7 +258,7 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Set the Validator instance.
      *
-     * @param Validator $validator
+     * @param  \Illuminate\Contracts\Validation\Validator  $validator
      * @return $this
      */
     public function setValidator(Validator $validator)
@@ -297,7 +284,7 @@ class FormRequest extends Request implements ValidatesWhenResolved
     /**
      * Set the container implementation.
      *
-     * @param Container $container
+     * @param  \Illuminate\Contracts\Container\Container  $container
      * @return $this
      */
     public function setContainer(Container $container)
