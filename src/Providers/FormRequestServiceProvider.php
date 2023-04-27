@@ -2,10 +2,12 @@
 
 namespace Illuminate\Foundation\Providers;
 
-use Illuminate\Contracts\Validation\ValidatesWhenResolved;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Routing\Redirector;
+use Illuminate\Container\Container;
+use Laravel\Lumen\Http\Redirector;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\HttpFoundation\Request;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\ValidatesWhenResolved;
 
 class FormRequestServiceProvider extends ServiceProvider
 {
@@ -29,11 +31,36 @@ class FormRequestServiceProvider extends ServiceProvider
         $this->app->afterResolving(ValidatesWhenResolved::class, function ($resolved) {
             $resolved->validateResolved();
         });
-
         $this->app->resolving(FormRequest::class, function ($request, $app) {
-            $request = FormRequest::createFrom($app['request'], $request);
-
+            $this->initializeRequest($request, $app['request']);
             $request->setContainer($app)->setRedirector($app->make(Redirector::class));
         });
+    }
+    /**
+     * Initialize the form request with data from the given request.
+     *
+     * @param  FormRequest $form
+     * @param  \Symfony\Component\HttpFoundation\Request  $current
+     * @return void
+     */
+    protected function initializeRequest(FormRequest $form, Request $current)
+    {
+        $files = $current->files->all();
+        $files = is_array($files) ? array_filter($files) : $files;
+        $form->initialize(
+            $current->query->all(),
+            $current->request->all(),
+            $current->attributes->all(),
+            $current->cookies->all(),
+            $files,
+            $current->server->all(),
+            $current->getContent()
+        );
+        $form->setJson($current->json());
+        if ($current->hasSession() && $session = $current->getSession()) {
+            $form->setLaravelSession($session);
+        }
+        $form->setUserResolver($current->getUserResolver());
+        $form->setRouteResolver($current->getRouteResolver());
     }
 }
