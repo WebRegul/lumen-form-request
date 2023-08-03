@@ -3,7 +3,7 @@
 namespace Illuminate\Foundation\Http;
 
 /**
- * @deprecated 2.0.5
+ * @deprecated 2.0.6
  */
 trait ValidationMessagesTrait
 {
@@ -30,7 +30,7 @@ trait ValidationMessagesTrait
 
     /**
      * Оставлено для совместимости. Все стандартные тексты уходят в локализацию
-     * @deprecated 2.0.5
+     * @deprecated 2.0.6
      *
      * @return array
      */
